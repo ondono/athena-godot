@@ -1,0 +1,26 @@
+# Build dependencies and generated output
+/build/
+/dist/
+/third_party/
+
+# Godot import and editor cache
+/project/.godot/
+
+# CMake and SCons byproducts
+CMakeUserPresets.json
+compile_commands.json
+.sconsign.dblite
+*.os
+
+# Compiled native artifacts
+*.so
+*.dll
+*.dylib
+*.pdb
+*.exp
+*.lib
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
