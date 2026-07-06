@@ -70,6 +70,18 @@ falls back to `master` unless `GODOT_CPP_REF` is set.
 The compiled library should be copied or emitted to `project/bin/` with a name
 matching `project/bin/athena_godot.gdextension`.
 
+To assemble the already-built x86_64 and ARM64 libraries as a reusable Godot
+addon:
+
+```sh
+./tools/package-addon.sh
+```
+
+The artifact is written to `dist/athena-addon` by default. Set `OUTPUT_DIR` to
+use another location. The packaged manifest points to
+`res://addons/athena/bin`, and `SHA256SUMS` covers the manifest and native
+libraries.
+
 After a fresh checkout, open the Godot project once or run an import pass so
 Godot writes its generated extension list:
 

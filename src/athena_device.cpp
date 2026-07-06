@@ -121,6 +121,28 @@ void AthenaDevice::_bind_methods()
     ClassDB::bind_method(D_METHOD("set_enable_thermal", "enable_thermal"),
                          &AthenaDevice::set_enable_thermal);
     ClassDB::bind_method(D_METHOD("get_enable_thermal"), &AthenaDevice::get_enable_thermal);
+    ClassDB::bind_method(D_METHOD("set_enable_imu", "enable_imu"), &AthenaDevice::set_enable_imu);
+    ClassDB::bind_method(D_METHOD("get_enable_imu"), &AthenaDevice::get_enable_imu);
+    ClassDB::bind_method(D_METHOD("set_enable_apriltags", "enable_apriltags"),
+                         &AthenaDevice::set_enable_apriltags);
+    ClassDB::bind_method(D_METHOD("get_enable_apriltags"), &AthenaDevice::get_enable_apriltags);
+    ClassDB::bind_method(D_METHOD("set_thermal_left_device", "path"),
+                         &AthenaDevice::set_thermal_left_device);
+    ClassDB::bind_method(D_METHOD("get_thermal_left_device"), &AthenaDevice::get_thermal_left_device);
+    ClassDB::bind_method(D_METHOD("set_thermal_right_device", "path"),
+                         &AthenaDevice::set_thermal_right_device);
+    ClassDB::bind_method(D_METHOD("get_thermal_right_device"), &AthenaDevice::get_thermal_right_device);
+    ClassDB::bind_method(D_METHOD("set_apriltag_detector_stream", "stream"),
+                         &AthenaDevice::set_apriltag_detector_stream);
+    ClassDB::bind_method(D_METHOD("get_apriltag_detector_stream"),
+                         &AthenaDevice::get_apriltag_detector_stream);
+    ClassDB::bind_method(D_METHOD("set_apriltag_tag_size_m", "size_m"),
+                         &AthenaDevice::set_apriltag_tag_size_m);
+    ClassDB::bind_method(D_METHOD("get_apriltag_tag_size_m"), &AthenaDevice::get_apriltag_tag_size_m);
+    ClassDB::bind_method(D_METHOD("set_apriltag_max_reprojection_error_px", "pixels"),
+                         &AthenaDevice::set_apriltag_max_reprojection_error_px);
+    ClassDB::bind_method(D_METHOD("get_apriltag_max_reprojection_error_px"),
+                         &AthenaDevice::get_apriltag_max_reprojection_error_px);
 
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "device_mxid"), "set_device_mxid",
                  "get_device_mxid");
@@ -130,6 +152,23 @@ void AthenaDevice::_bind_methods()
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_ir"), "set_enable_ir", "get_enable_ir");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_thermal"), "set_enable_thermal",
                  "get_enable_thermal");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_imu"), "set_enable_imu", "get_enable_imu");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_apriltags"), "set_enable_apriltags",
+                 "get_enable_apriltags");
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "thermal_left_device"),
+                 "set_thermal_left_device", "get_thermal_left_device");
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "thermal_right_device"),
+                 "set_thermal_right_device", "get_thermal_right_device");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "apriltag_detector_stream", PROPERTY_HINT_ENUM,
+                              "Mono Left,Mono Right"),
+                 "set_apriltag_detector_stream", "get_apriltag_detector_stream");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "apriltag_tag_size_m", PROPERTY_HINT_RANGE,
+                              "0.001,1.0,0.001"),
+                 "set_apriltag_tag_size_m", "get_apriltag_tag_size_m");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "apriltag_max_reprojection_error_px",
+                              PROPERTY_HINT_RANGE, "0.1,100.0,0.1"),
+                 "set_apriltag_max_reprojection_error_px",
+                 "get_apriltag_max_reprojection_error_px");
 
     BIND_ENUM_CONSTANT(STREAM_RGB);
     BIND_ENUM_CONSTANT(STREAM_IR_LEFT);
@@ -417,6 +456,76 @@ bool AthenaDevice::get_enable_thermal() const
     return enable_thermal_;
 }
 
+void AthenaDevice::set_enable_imu(bool value)
+{
+    enable_imu_ = value;
+}
+
+bool AthenaDevice::get_enable_imu() const
+{
+    return enable_imu_;
+}
+
+void AthenaDevice::set_enable_apriltags(bool value)
+{
+    enable_apriltags_ = value;
+}
+
+bool AthenaDevice::get_enable_apriltags() const
+{
+    return enable_apriltags_;
+}
+
+void AthenaDevice::set_thermal_left_device(const String& value)
+{
+    thermal_left_device_ = value;
+}
+
+String AthenaDevice::get_thermal_left_device() const
+{
+    return thermal_left_device_;
+}
+
+void AthenaDevice::set_thermal_right_device(const String& value)
+{
+    thermal_right_device_ = value;
+}
+
+String AthenaDevice::get_thermal_right_device() const
+{
+    return thermal_right_device_;
+}
+
+void AthenaDevice::set_apriltag_detector_stream(int32_t value)
+{
+    apriltag_detector_stream_ = std::clamp(value, 0, 1);
+}
+
+int32_t AthenaDevice::get_apriltag_detector_stream() const
+{
+    return apriltag_detector_stream_;
+}
+
+void AthenaDevice::set_apriltag_tag_size_m(double value)
+{
+    apriltag_tag_size_m_ = std::max(value, 0.001);
+}
+
+double AthenaDevice::get_apriltag_tag_size_m() const
+{
+    return apriltag_tag_size_m_;
+}
+
+void AthenaDevice::set_apriltag_max_reprojection_error_px(double value)
+{
+    apriltag_max_reprojection_error_px_ = std::max(value, 0.1);
+}
+
+double AthenaDevice::get_apriltag_max_reprojection_error_px() const
+{
+    return apriltag_max_reprojection_error_px_;
+}
+
 AthenaConfig AthenaDevice::make_config() const
 {
     AthenaConfig config{};
@@ -427,6 +536,17 @@ AthenaConfig AthenaDevice::make_config() const
     config.enable_rgb = enable_rgb_ ? 1U : 0U;
     config.enable_ir = enable_ir_ ? 1U : 0U;
     config.enable_thermal = enable_thermal_ ? 1U : 0U;
+    config.enable_imu = enable_imu_ ? 1U : 0U;
+    config.enable_apriltags = enable_apriltags_ ? 1U : 0U;
+    CopyStringToBuffer(thermal_left_device_, config.thermal_left_device,
+                       sizeof(config.thermal_left_device));
+    CopyStringToBuffer(thermal_right_device_, config.thermal_right_device,
+                       sizeof(config.thermal_right_device));
+    config.apriltag_detector_stream =
+        static_cast<AthenaDetectorStream>(apriltag_detector_stream_);
+    config.apriltag_tag_size_m = static_cast<float>(apriltag_tag_size_m_);
+    config.apriltag_max_reprojection_error_px =
+        static_cast<float>(apriltag_max_reprojection_error_px_);
 
     return config;
 }

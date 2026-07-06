@@ -15,23 +15,53 @@ download() {
     url=$1
     out=$2
     if [ -f "$out" ]; then
-        return
+        return 0
     fi
     tmp="$out.tmp"
     rm -f "$tmp"
-    curl -fL "$url" -o "$tmp"
-    mv "$tmp" "$out"
+    if ! curl -fL "$url" -o "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    if ! mv "$tmp" "$out"; then
+        rm -f "$tmp"
+        return 1
+    fi
+}
+
+download_fresh() {
+    url=$1
+    out=$2
+    tmp="$out.tmp"
+    rm -f "$tmp"
+    if ! curl -fL "$url" -o "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    if ! mv "$tmp" "$out"; then
+        rm -f "$tmp"
+        return 1
+    fi
 }
 
 refresh_db() {
     repo=$1
     db="$CACHE_DIR/$repo.db"
-    download "$MIRROR_URL/$repo/$repo.db" "$db"
-    index_dir="$CACHE_DIR/db/$repo"
-    if [ ! -d "$index_dir" ]; then
-        mkdir -p "$index_dir"
-        bsdtar -xf "$db" -C "$index_dir"
+    if ! download_fresh "$MIRROR_URL/$repo/$repo.db" "$db"; then
+        echo "failed to refresh $repo package database" >&2
+        return 1
     fi
+    index_dir="$CACHE_DIR/db/$repo"
+    index_tmp="$index_dir.tmp.$$"
+    rm -rf "$index_tmp"
+    mkdir -p "$index_tmp"
+    if ! bsdtar -xf "$db" -C "$index_tmp"; then
+        rm -rf "$index_tmp"
+        echo "failed to extract $repo package database" >&2
+        return 1
+    fi
+    rm -rf "$index_dir"
+    mv "$index_tmp" "$index_dir"
 }
 
 package_filename() {
@@ -52,12 +82,18 @@ download_package() {
     name=$2
     filename=$(package_filename "$repo" "$name")
     if [ -z "$filename" ]; then
-        return 1
+        return 2
     fi
 
     archive="$CACHE_DIR/$filename"
-    download "$MIRROR_URL/$repo/$filename" "$archive"
-    bsdtar -xpf "$archive" -C "$SYSROOT_DIR"
+    if ! download "$MIRROR_URL/$repo/$filename" "$archive"; then
+        echo "failed to download $name from $repo: $filename" >&2
+        return 1
+    fi
+    if ! bsdtar -xpf "$archive" -C "$SYSROOT_DIR"; then
+        echo "failed to extract $name from $repo: $archive" >&2
+        return 1
+    fi
     return 0
 }
 
@@ -67,11 +103,20 @@ refresh_db extra
 for package in $PACKAGES; do
     if download_package core "$package"; then
         echo "installed $package from core"
-    elif download_package extra "$package"; then
-        echo "installed $package from extra"
     else
-        echo "could not find package: $package" >&2
-        exit 1
+        status=$?
+        if [ "$status" -ne 2 ]; then
+            exit "$status"
+        fi
+        if download_package extra "$package"; then
+            echo "installed $package from extra"
+        else
+            status=$?
+            if [ "$status" -eq 2 ]; then
+                echo "could not find package: $package" >&2
+            fi
+            exit "$status"
+        fi
     fi
 done
 

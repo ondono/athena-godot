@@ -54,6 +54,27 @@ public:
     void set_enable_thermal(bool enable_thermal);
     bool get_enable_thermal() const;
 
+    void set_enable_imu(bool enable_imu);
+    bool get_enable_imu() const;
+
+    void set_enable_apriltags(bool enable_apriltags);
+    bool get_enable_apriltags() const;
+
+    void set_thermal_left_device(const String& value);
+    String get_thermal_left_device() const;
+
+    void set_thermal_right_device(const String& value);
+    String get_thermal_right_device() const;
+
+    void set_apriltag_detector_stream(int32_t value);
+    int32_t get_apriltag_detector_stream() const;
+
+    void set_apriltag_tag_size_m(double value);
+    double get_apriltag_tag_size_m() const;
+
+    void set_apriltag_max_reprojection_error_px(double value);
+    double get_apriltag_max_reprojection_error_px() const;
+
     enum Stream
     {
         STREAM_RGB = 0,
@@ -71,6 +92,13 @@ private:
     bool enable_rgb_ = true;
     bool enable_ir_ = true;
     bool enable_thermal_ = false;
+    bool enable_imu_ = true;
+    bool enable_apriltags_ = true;
+    String thermal_left_device_;
+    String thermal_right_device_;
+    int32_t apriltag_detector_stream_ = 0;
+    double apriltag_tag_size_m_ = 0.16;
+    double apriltag_max_reprojection_error_px_ = 8.0;
     bool initialized_ = false;
 };
 
