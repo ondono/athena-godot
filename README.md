@@ -5,8 +5,7 @@ This project is the Godot GDExtension counterpart to the native Athena plugin in
 
 The goal is to make Luxonis OAK devices usable from Godot while preserving the
 native runtime model already used by the Unity plugin: one C++ worker thread, a
-small polling API, deterministic simulated fallback, and optional DepthAI/OpenCV
-hardware support.
+small polling API, and real DepthAI/OpenCV hardware support.
 
 ## Architecture
 
@@ -56,31 +55,31 @@ platform tags to the shared library Godot should load.
 
 ## Build
 
-This scaffold expects CMake and an existing `godot-cpp` checkout:
+Build profiles are defined in `CMakePresets.json` and documented in
+`BUILD.md`. The wrapper script is intentionally thin:
 
 ```sh
-./build.sh
+./scripts/build-plugin.sh linux-x86_64-release
 ```
 
-`tools/bootstrap-godot-cpp.sh` clones the matching `godot-cpp` branch when the
-installed Godot major/minor branch exists. The local editor is Godot 4.7, and
-upstream `godot-cpp` currently does not publish a `4.7` branch, so the script
-falls back to `master` unless `GODOT_CPP_REF` is set.
+Run `tools/bootstrap-godot-cpp.sh` before configuring if
+`third_party/godot-cpp` is not present. Real DepthAI and OpenCV package roots
+must be passed explicitly; the build does not silently use host packages.
 
-The compiled library should be copied or emitted to `project/bin/` with a name
-matching `project/bin/athena_godot.gdextension`.
+The compiled library is emitted to `project/bin/` with a name matching
+`project/bin/athena_godot.gdextension`.
 
-To assemble the already-built x86_64 and ARM64 libraries as a reusable Godot
-addon:
+To assemble the x86_64 release library and its runtime dependencies as a
+reusable Godot addon:
 
 ```sh
-./tools/package-addon.sh
+cmake --build --preset package-runtime
 ```
 
-The artifact is written to `dist/athena-addon` by default. Set `OUTPUT_DIR` to
-use another location. The packaged manifest points to
-`res://addons/athena/bin`, and `SHA256SUMS` covers the manifest and native
-libraries.
+The artifact is written to `dist/x86_64/athena-runtime/`. The packaged manifest
+points to `res://addons/athena/bin/linux.x86_64`, and the package target checks
+that OpenCV, libusb, and DepthAI runtime dependencies resolve from the packaged
+addon instead of the build dependency tree.
 
 After a fresh checkout, open the Godot project once or run an import pass so
 Godot writes its generated extension list:
@@ -98,8 +97,8 @@ godot --path project
 To test the extension and a connected Luxonis device without a display:
 
 ```sh
-./headless-test.sh
-./headless-test.sh --timeout=30
+./scripts/test-headless-hardware.sh
+./scripts/test-headless-hardware.sh --timeout=30
 ```
 
 The test disables simulated fallback and exits successfully only after the
@@ -110,35 +109,12 @@ standard output and returns a nonzero exit code on failure.
 ## Rock Pi 5+
 
 Rock Pi 5+ should use the Linux ARM64 GDExtension entries in
-`project/bin/athena_godot.gdextension`. To build on the board itself:
+`project/bin/athena_godot.gdextension`. Use the Debian 12 ARM64 release preset:
 
 ```sh
-./build-rockpi.sh
-```
-
-To cross-compile from x86_64, provide an ARM64 sysroot if the host does not
-already have an aarch64 linker/runtime:
-
-```sh
-ATHENA_AARCH64_SYSROOT=/path/to/rockpi/sysroot ./build-rockpi.sh
-```
-
-On this Arch Linux host, a local Arch Linux ARM sysroot can be downloaded and
-extracted with:
-
-```sh
-./tools/bootstrap-rockpi-sysroot.sh
-ATHENA_AARCH64_SYSROOT="$PWD/build/sysroots/archlinuxarm-aarch64" \
-ATHENA_AARCH64_TARGET=aarch64-unknown-linux-gnu \
-./build-rockpi.sh
-```
-
-The default Rock Pi build is simulated/no-DepthAI so the Godot extension can be
-compiled first. For real Luxonis hardware on the board, build or provide ARM64
-DepthAI/OpenCV packages and run:
-
-```sh
-ATHENA_ENABLE_DEPTHAI=ON ATHENA_DEPTHAI_PACKAGE_DIR=/path/to/arm64/depthai ./build-rockpi.sh
+./tools/bootstrap-debian12-sysroot.sh
+./scripts/provision-deps.sh debian12-aarch64
+./scripts/build-rockpi-plugin.sh
 ```
 
 ## Source-Of-Truth Rules
@@ -147,6 +123,6 @@ ATHENA_ENABLE_DEPTHAI=ON ATHENA_DEPTHAI_PACKAGE_DIR=/path/to/arm64/depthai ./bui
   separate Godot-only hardware path.
 - Keep coordinate-frame and fixed camera-mount corrections in native Athena
   output so Unity and Godot see the same semantics.
-- Keep Linux hardware, Linux simulated, and Windows packaging paths distinct.
+- Keep Linux hardware and Windows packaging paths distinct.
 - Prefer reproducible dependency metadata and bootstrap scripts when adding
   DepthAI/OpenCV/godot-cpp setup.

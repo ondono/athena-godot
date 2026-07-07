@@ -1,0 +1,125 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-x86_64-dev",
+      "displayName": "Linux x86_64 development",
+      "description": "Host x86_64 development build. Real DepthAI/OpenCV paths are still explicit.",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux-x86_64-dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/make",
+        "ATHENA_TARGET_PROFILE": "linux-x86_64-dev",
+        "ATHENA_TARGET_GLIBC_VERSION": "2.36",
+        "ATHENA_ENABLE_DEPTHAI": "ON",
+        "ATHENA_DEPTHAI_API_VERSION": "2",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/linux-x86_64/depthai;${sourceDir}/build/deps/linux-x86_64/opencv",
+        "ATHENA_DEPTHAI_PACKAGE_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai",
+        "ATHENA_OPENCV_PACKAGE_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv",
+        "depthai_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai/lib/cmake/depthai",
+        "OpenCV_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv/lib/cmake/opencv4",
+        "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
+        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
+        "GODOTCPP_TARGET": "template_debug"
+      }
+    },
+    {
+      "name": "linux-x86_64-release",
+      "displayName": "Linux x86_64 release",
+      "description": "Release x86_64 GDExtension using explicit real DepthAI/OpenCV packages.",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux-x86_64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/make",
+        "ATHENA_TARGET_PROFILE": "linux-x86_64-release",
+        "ATHENA_TARGET_GLIBC_VERSION": "2.36",
+        "ATHENA_ENABLE_DEPTHAI": "ON",
+        "ATHENA_DEPTHAI_API_VERSION": "2",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/linux-x86_64/depthai;${sourceDir}/build/deps/linux-x86_64/opencv",
+        "ATHENA_DEPTHAI_PACKAGE_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai",
+        "ATHENA_OPENCV_PACKAGE_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv",
+        "depthai_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai/lib/cmake/depthai",
+        "OpenCV_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv/lib/cmake/opencv4",
+        "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
+        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
+        "GODOTCPP_TARGET": "template_release"
+      }
+    },
+    {
+      "name": "debian12-aarch64-release",
+      "displayName": "Debian 12 aarch64 release",
+      "description": "Release ARM64 GDExtension for Debian 12 ABI compatibility.",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/debian12-aarch64-release",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/debian12-aarch64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/make",
+        "ATHENA_TARGET_PROFILE": "debian12-aarch64-release",
+        "ATHENA_TARGET_GLIBC_VERSION": "2.36",
+        "ATHENA_ENABLE_DEPTHAI": "ON",
+        "ATHENA_DEPTHAI_API_VERSION": "2",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/debian12-aarch64/depthai;${sourceDir}/build/deps/debian12-aarch64/opencv",
+        "ATHENA_DEPTHAI_PACKAGE_DIR": "${sourceDir}/build/deps/debian12-aarch64/depthai",
+        "ATHENA_OPENCV_PACKAGE_DIR": "${sourceDir}/build/deps/debian12-aarch64/opencv",
+        "depthai_DIR": "${sourceDir}/build/deps/debian12-aarch64/depthai/lib/cmake/depthai",
+        "OpenCV_DIR": "${sourceDir}/build/deps/debian12-aarch64/opencv/lib/cmake/opencv4",
+        "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
+        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
+        "ATHENA_GODOT_OUTPUT_SUBDIR": "linux-arm64",
+        "GODOTCPP_TARGET": "template_release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x86_64-dev",
+      "configurePreset": "linux-x86_64-dev",
+      "targets": [
+        "athena_godot"
+      ]
+    },
+    {
+      "name": "linux-x86_64-release",
+      "configurePreset": "linux-x86_64-release",
+      "targets": [
+        "athena_godot"
+      ]
+    },
+    {
+      "name": "debian12-aarch64-release",
+      "configurePreset": "debian12-aarch64-release",
+      "targets": [
+        "athena_godot"
+      ]
+    },
+    {
+      "name": "check-abi-linux-x86_64-release",
+      "configurePreset": "linux-x86_64-release",
+      "targets": [
+        "check-abi"
+      ]
+    },
+    {
+      "name": "check-abi-debian12-aarch64-release",
+      "configurePreset": "debian12-aarch64-release",
+      "targets": [
+        "check-abi"
+      ]
+    },
+    {
+      "name": "package-runtime",
+      "configurePreset": "linux-x86_64-release",
+      "targets": [
+        "package-runtime"
+      ]
+    }
+  ]
+}

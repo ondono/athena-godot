@@ -1,0 +1,143 @@
+cmake_minimum_required(VERSION 3.20)
+
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
+project(athena_dependency_provisioning NONE)
+
+include(ExternalProject)
+include("${CMAKE_CURRENT_LIST_DIR}/../deps/versions.cmake")
+
+set(ATHENA_PROVISION_TARGET
+    ""
+    CACHE STRING
+    "Dependency target to provision: linux-x86_64 or debian12-aarch64"
+)
+set(ATHENA_DEPS_PREFIX
+    ""
+    CACHE PATH
+    "Install root for provisioned dependencies"
+)
+set(ATHENA_TARGET_TOOLCHAIN_FILE
+    ""
+    CACHE FILEPATH
+    "Optional toolchain file passed to dependency builds"
+)
+
+if(NOT ATHENA_PROVISION_TARGET MATCHES "^(linux-x86_64|debian12-aarch64)$")
+    message(FATAL_ERROR
+        "ATHENA_PROVISION_TARGET must be linux-x86_64 or debian12-aarch64."
+    )
+endif()
+
+if(NOT ATHENA_DEPS_PREFIX)
+    message(FATAL_ERROR "ATHENA_DEPS_PREFIX is required.")
+endif()
+
+get_filename_component(ATHENA_DEPS_PREFIX "${ATHENA_DEPS_PREFIX}" ABSOLUTE)
+get_filename_component(ATHENA_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+get_filename_component(ATHENA_EXPECTED_DEPS_ROOT
+    "${ATHENA_REPO_ROOT}/build/deps/${ATHENA_PROVISION_TARGET}"
+    ABSOLUTE
+)
+
+if(NOT ATHENA_DEPS_PREFIX STREQUAL ATHENA_EXPECTED_DEPS_ROOT)
+    message(FATAL_ERROR
+        "ATHENA_DEPS_PREFIX must be ${ATHENA_EXPECTED_DEPS_ROOT}, got ${ATHENA_DEPS_PREFIX}."
+    )
+endif()
+
+set(ATHENA_DEPS_DOWNLOAD_DIR "${ATHENA_REPO_ROOT}/build/downloads/${ATHENA_PROVISION_TARGET}")
+set(ATHENA_DEPS_SOURCE_DIR "${ATHENA_REPO_ROOT}/build/deps-src/${ATHENA_PROVISION_TARGET}")
+set(ATHENA_DEPS_BUILD_ROOT "${CMAKE_BINARY_DIR}/build")
+
+set(ATHENA_CHILD_CMAKE_ARGS
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE
+    -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=FALSE
+    -DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=FALSE
+)
+
+if(ATHENA_TARGET_TOOLCHAIN_FILE)
+    list(APPEND ATHENA_CHILD_CMAKE_ARGS
+        -DCMAKE_TOOLCHAIN_FILE=${ATHENA_TARGET_TOOLCHAIN_FILE}
+    )
+endif()
+
+set(ATHENA_OPENCV_PREFIX "${ATHENA_DEPS_PREFIX}/opencv")
+set(ATHENA_DEPTHAI_PREFIX "${ATHENA_DEPS_PREFIX}/depthai")
+set(ATHENA_DEPTHAI_HUNTER_ROOT "${ATHENA_DEPS_PREFIX}/_hunter")
+
+ExternalProject_Add(opencv
+    GIT_REPOSITORY "${ATHENA_DEPS_OPENCV_GIT_REPOSITORY}"
+    GIT_TAG "${ATHENA_DEPS_OPENCV_GIT_TAG}"
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+    PREFIX "${ATHENA_DEPS_BUILD_ROOT}/opencv"
+    SOURCE_DIR "${ATHENA_DEPS_SOURCE_DIR}/opencv-${ATHENA_DEPS_OPENCV_VERSION}"
+    DOWNLOAD_DIR "${ATHENA_DEPS_DOWNLOAD_DIR}"
+    CMAKE_ARGS
+        ${ATHENA_CHILD_CMAKE_ARGS}
+        -DCMAKE_INSTALL_PREFIX=${ATHENA_OPENCV_PREFIX}
+        -DBUILD_LIST=core,imgproc,calib3d,objdetect
+        -DBUILD_SHARED_LIBS=ON
+        -DBUILD_TESTS=OFF
+        -DBUILD_PERF_TESTS=OFF
+        -DBUILD_EXAMPLES=OFF
+        -DBUILD_opencv_apps=OFF
+        -DBUILD_DOCS=OFF
+        -DBUILD_JAVA=OFF
+        -DBUILD_opencv_java=OFF
+        -DBUILD_opencv_python2=OFF
+        -DBUILD_opencv_python3=OFF
+        -DBUILD_opencv_python_bindings_generator=OFF
+        -DWITH_FFMPEG=OFF
+        -DWITH_GSTREAMER=OFF
+        -DWITH_GTK=OFF
+        -DWITH_QT=OFF
+        -DWITH_OPENCL=OFF
+        -DWITH_IPP=OFF
+        -DWITH_TBB=OFF
+        -DWITH_PROTOBUF=OFF
+        -DBUILD_PROTOBUF=OFF
+        -DOpenCV_ENABLE_NONFREE=OFF
+)
+
+ExternalProject_Add(depthai
+    URL "${ATHENA_DEPS_DEPTHAI_URL}"
+    PREFIX "${ATHENA_DEPS_BUILD_ROOT}/depthai"
+    SOURCE_DIR "${ATHENA_DEPS_SOURCE_DIR}/depthai-core-${ATHENA_DEPS_DEPTHAI_VERSION}"
+    DOWNLOAD_DIR "${ATHENA_DEPS_DOWNLOAD_DIR}"
+    PATCH_COMMAND
+        ${CMAKE_COMMAND}
+        -DDEPTHAI_SOURCE_DIR=<SOURCE_DIR>
+        -DATHENA_DEPS_DEPTHAI_VERSION=${ATHENA_DEPS_DEPTHAI_VERSION}
+        -P "${CMAKE_CURRENT_LIST_DIR}/patch-depthai-v229.cmake"
+    CMAKE_ARGS
+        ${ATHENA_CHILD_CMAKE_ARGS}
+        -DCMAKE_INSTALL_PREFIX=${ATHENA_DEPTHAI_PREFIX}
+        -DHUNTER_ROOT=${ATHENA_DEPTHAI_HUNTER_ROOT}
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DBUILD_SHARED_LIBS=OFF
+        -DDEPTHAI_INSTALL=ON
+        -DDEPTHAI_ENABLE_LIBUSB=ON
+        -DDEPTHAI_BUILD_EXAMPLES=OFF
+        -DDEPTHAI_BUILD_TESTS=OFF
+        -DDEPTHAI_OPENCV_SUPPORT=OFF
+        -DDEPTHAI_ENABLE_BACKWARD=OFF
+        -DDEPTHAI_ENABLE_CURL=OFF
+        -DCMAKE_PREFIX_PATH=${ATHENA_DEPS_PREFIX}
+    DEPENDS opencv
+)
+
+add_custom_target(verify-provisioned-deps ALL
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DATHENA_DEPS_PREFIX=${ATHENA_DEPS_PREFIX}
+        -DATHENA_PROVISION_TARGET=${ATHENA_PROVISION_TARGET}
+        -P "${CMAKE_CURRENT_LIST_DIR}/verify-provisioned-deps.cmake"
+    DEPENDS opencv depthai
+    VERBATIM
+)

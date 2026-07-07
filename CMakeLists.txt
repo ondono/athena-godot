@@ -5,11 +5,6 @@ project(athena_plugin_godot
     LANGUAGES CXX
 )
 
-set(GODOT_CPP_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/godot-cpp"
-    CACHE PATH
-    "Path to a godot-cpp checkout"
-)
 set(ATHENA_NATIVE_PLUGIN_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../../software/athena-plugin"
     CACHE PATH
@@ -20,13 +15,16 @@ set(ATHENA_GODOT_OUTPUT_SUBDIR
     CACHE STRING
     "Optional subdirectory under project/bin for platform-specific output"
 )
-
-if(NOT EXISTS "${GODOT_CPP_DIR}/CMakeLists.txt")
-    message(FATAL_ERROR
-        "godot-cpp was not found at ${GODOT_CPP_DIR}. "
-        "Clone https://github.com/godotengine/godot-cpp there or pass -DGODOT_CPP_DIR=/path/to/godot-cpp."
-    )
-endif()
+set(ATHENA_TARGET_PROFILE
+    "linux-x86_64-dev"
+    CACHE STRING
+    "Named build profile for diagnostics and packaging"
+)
+set(ATHENA_TARGET_GLIBC_VERSION
+    "2.36"
+    CACHE STRING
+    "Maximum glibc runtime ABI expected for release artifacts"
+)
 
 if(NOT EXISTS "${ATHENA_NATIVE_PLUGIN_DIR}/include/athena_plugin/athena_plugin.h")
     message(FATAL_ERROR
@@ -35,9 +33,16 @@ if(NOT EXISTS "${ATHENA_NATIVE_PLUGIN_DIR}/include/athena_plugin/athena_plugin.h
     )
 endif()
 
+set(CMAKE_FIND_USE_PACKAGE_REGISTRY FALSE)
+set(CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY FALSE)
+set(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH FALSE)
+
+include(cmake/deps/depthai.cmake)
+include(cmake/deps/opencv.cmake)
+include(cmake/deps/godot-cpp.cmake)
+
 set(ATHENA_PLUGIN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-add_subdirectory("${GODOT_CPP_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/godot-cpp")
 add_subdirectory("${ATHENA_NATIVE_PLUGIN_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/athena-native")
 
 set_target_properties(athena_plugin PROPERTIES
@@ -84,3 +89,40 @@ add_custom_command(TARGET athena_godot POST_BUILD
         $<TARGET_FILE:athena_plugin>
         "${CMAKE_CURRENT_SOURCE_DIR}/project/bin/${ATHENA_GODOT_OUTPUT_SUBDIR}/$<TARGET_FILE_NAME:athena_plugin>"
 )
+
+add_custom_target(check-abi
+    COMMAND
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-abi.sh"
+        "--max-glibc"
+        "${ATHENA_TARGET_GLIBC_VERSION}"
+        "$<TARGET_FILE:athena_godot>"
+        "$<TARGET_FILE:athena_plugin>"
+    DEPENDS athena_godot athena_plugin
+    COMMENT "Checking exported ABI and glibc symbol versions for ${ATHENA_TARGET_PROFILE}"
+    VERBATIM
+)
+
+if(ATHENA_TARGET_PROFILE STREQUAL "linux-x86_64-release")
+    set(ATHENA_RUNTIME_DIST_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/dist/x86_64/athena-runtime"
+    )
+    set(ATHENA_RUNTIME_ADDON_DIR "${ATHENA_RUNTIME_DIST_DIR}/addons/athena")
+    set(ATHENA_RUNTIME_BIN_DIR "${ATHENA_RUNTIME_ADDON_DIR}/bin/linux.x86_64")
+
+    add_custom_target(package-runtime
+        COMMAND
+            "${CMAKE_COMMAND}"
+            -DATHENA_RUNTIME_DIST_DIR=${ATHENA_RUNTIME_DIST_DIR}
+            -DATHENA_RUNTIME_ADDON_DIR=${ATHENA_RUNTIME_ADDON_DIR}
+            -DATHENA_RUNTIME_BIN_DIR=${ATHENA_RUNTIME_BIN_DIR}
+            -DATHENA_GDEXTENSION_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}/project/bin/athena_godot.gdextension
+            -DATHENA_GODOT_LIBRARY=$<TARGET_FILE:athena_godot>
+            -DATHENA_NATIVE_LIBRARY=$<TARGET_FILE:athena_plugin>
+            -DATHENA_OPENCV_PACKAGE_DIR=${ATHENA_OPENCV_PACKAGE_DIR}
+            -DATHENA_DEPTHAI_PACKAGE_DIR=${ATHENA_DEPTHAI_PACKAGE_DIR}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/package-runtime.cmake"
+        DEPENDS check-abi
+        COMMENT "Packaging linux-x86_64 Athena runtime"
+        VERBATIM
+    )
+endif()
