@@ -25,7 +25,6 @@
         "depthai_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai/lib/cmake/depthai",
         "OpenCV_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv/lib/cmake/opencv4",
         "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
-        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
         "GODOTCPP_TARGET": "template_debug"
       }
     },
@@ -48,7 +47,6 @@
         "depthai_DIR": "${sourceDir}/build/deps/linux-x86_64/depthai/lib/cmake/depthai",
         "OpenCV_DIR": "${sourceDir}/build/deps/linux-x86_64/opencv/lib/cmake/opencv4",
         "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
-        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
         "GODOTCPP_TARGET": "template_release"
       }
     },
@@ -72,7 +70,6 @@
         "depthai_DIR": "${sourceDir}/build/deps/debian12-aarch64/depthai/lib/cmake/depthai",
         "OpenCV_DIR": "${sourceDir}/build/deps/debian12-aarch64/opencv/lib/cmake/opencv4",
         "GODOT_CPP_DIR": "${sourceDir}/third_party/godot-cpp",
-        "ATHENA_NATIVE_PLUGIN_DIR": "${sourceDir}/../../software/athena-plugin",
         "ATHENA_GODOT_OUTPUT_SUBDIR": "linux-arm64",
         "GODOTCPP_TARGET": "template_release"
       }

@@ -1,0 +1,43 @@
+{
+  "version": 6,
+  "include": [
+    "CMakePresets.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "linux-x86_64-dev-local",
+      "inherits": "linux-x86_64-dev",
+      "cacheVariables": {
+        "ATHENA_NATIVE_PLUGIN_DIR": "/home/xavi/projects/inmersia/software/athena-plugin"
+      }
+    },
+    {
+      "name": "linux-x86_64-release-local",
+      "inherits": "linux-x86_64-release",
+      "cacheVariables": {
+        "ATHENA_NATIVE_PLUGIN_DIR": "/home/xavi/projects/inmersia/software/athena-plugin"
+      }
+    },
+    {
+      "name": "debian12-aarch64-release-local",
+      "inherits": "debian12-aarch64-release",
+      "cacheVariables": {
+        "ATHENA_NATIVE_PLUGIN_DIR": "/home/xavi/projects/inmersia/software/athena-plugin"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x86_64-dev-local",
+      "configurePreset": "linux-x86_64-dev-local"
+    },
+    {
+      "name": "linux-x86_64-release-local",
+      "configurePreset": "linux-x86_64-release-local"
+    },
+    {
+      "name": "debian12-aarch64-release-local",
+      "configurePreset": "debian12-aarch64-release-local"
+    }
+  ]
+}
