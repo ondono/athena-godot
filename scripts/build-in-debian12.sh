@@ -36,12 +36,12 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$PRESET" in
-    linux-x86_64-release)
+    *linux-x86_64-release*)
         DEPS_TARGET="linux-x86_64"
         ABI_PRESET="check-abi-linux-x86_64-release"
         PACKAGE_PRESET="package-runtime"
         ;;
-    debian12-aarch64-release)
+    *debian12-aarch64-release*|*linux-aarch64*|*aarch64*)
         if [ -n "$DEPLOY_PROJECT" ]; then
             usage
             echo "--deploy is currently supported only for linux-x86_64-release" >&2
