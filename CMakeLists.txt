@@ -90,6 +90,17 @@ add_custom_command(TARGET athena_godot POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/project/bin/${ATHENA_GODOT_OUTPUT_SUBDIR}/$<TARGET_FILE_NAME:athena_plugin>"
 )
 
+add_custom_command(TARGET athena_godot POST_BUILD
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DATHENA_RUNTIME_OUTPUT_DIR=${CMAKE_CURRENT_SOURCE_DIR}/project/bin/${ATHENA_GODOT_OUTPUT_SUBDIR}
+        -DATHENA_OPENCV_PACKAGE_DIR=${ATHENA_OPENCV_PACKAGE_DIR}
+        -DATHENA_DEPTHAI_PACKAGE_DIR=${ATHENA_DEPTHAI_PACKAGE_DIR}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/stage-runtime-deps.cmake"
+    COMMENT "Staging Athena runtime dependencies for the Godot test project"
+    VERBATIM
+)
+
 add_custom_target(check-abi
     COMMAND
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-abi.sh"

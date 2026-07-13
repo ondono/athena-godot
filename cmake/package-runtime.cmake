@@ -45,44 +45,8 @@ file(COPY
     DESTINATION "${ATHENA_RUNTIME_BIN_DIR}"
 )
 
-file(GLOB _opencv_runtime_libs
-    "${ATHENA_OPENCV_PACKAGE_DIR}/lib/libopencv_*.so*"
-)
-if(NOT _opencv_runtime_libs)
-    message(FATAL_ERROR
-        "No OpenCV runtime libraries found under ${ATHENA_OPENCV_PACKAGE_DIR}/lib."
-    )
-endif()
-
-foreach(_opencv_lib IN LISTS _opencv_runtime_libs)
-    file(COPY "${_opencv_lib}"
-        DESTINATION "${ATHENA_RUNTIME_BIN_DIR}"
-        FOLLOW_SYMLINK_CHAIN
-    )
-endforeach()
-
-set(_libusb_candidates
-    "${ATHENA_DEPTHAI_PACKAGE_DIR}/lib/cmake/depthai/dependencies/lib/libusb-1.0.so"
-    "${ATHENA_DEPTHAI_PACKAGE_DIR}/lib/cmake/depthai/dependencies/lib/cmake/XLink/dependencies/lib/libusb-1.0.so"
-)
-set(_libusb_runtime_lib "")
-foreach(_candidate IN LISTS _libusb_candidates)
-    if(EXISTS "${_candidate}")
-        set(_libusb_runtime_lib "${_candidate}")
-        break()
-    endif()
-endforeach()
-
-if(NOT _libusb_runtime_lib)
-    message(FATAL_ERROR
-        "Provisioned libusb runtime not found under ${ATHENA_DEPTHAI_PACKAGE_DIR}."
-    )
-endif()
-
-file(COPY "${_libusb_runtime_lib}"
-    DESTINATION "${ATHENA_RUNTIME_BIN_DIR}"
-    FOLLOW_SYMLINK_CHAIN
-)
+set(ATHENA_RUNTIME_OUTPUT_DIR "${ATHENA_RUNTIME_BIN_DIR}")
+include("${CMAKE_CURRENT_LIST_DIR}/stage-runtime-deps.cmake")
 
 find_program(_patchelf_executable patchelf REQUIRED)
 file(GLOB _packaged_runtime_libs "${ATHENA_RUNTIME_BIN_DIR}/*.so*")

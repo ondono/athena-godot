@@ -1,10 +1,20 @@
-# Build
+# Build And Deploy
 
 This repo builds the Godot GDExtension wrapper around the real native Athena
 plugin at `/home/xavi/projects/inmersia/software/athena-plugin`.
 
-The supported presets are intentionally hardware-capable builds. Simulated,
-no-camera, and no-DepthAI builds are not production profiles here.
+The supported presets are hardware-capable builds. Simulated, no-camera, and
+no-DepthAI builds are not production profiles here.
+
+## Source Layout
+
+- Wrapper repo: `/home/xavi/projects/inmersia/godot/athena-plugin-godot`
+- Native plugin repo: `/home/xavi/projects/inmersia/software/athena-plugin`
+- App repo: `/home/xavi/projects/inmersia/godot/athena-app-godot`
+- Packaged Athena addon output:
+  `dist/x86_64/athena-runtime/addons/athena`
+- App install destination:
+  `/home/xavi/projects/inmersia/godot/athena-app-godot/addons/athena`
 
 ## Dependency Rules
 
@@ -20,87 +30,88 @@ no-camera, and no-DepthAI builds are not production profiles here.
 - `third_party/` is reserved for source dependencies such as `godot-cpp`, not
   random local binary builds.
 
-## Dependency Provisioning
-
 Pinned dependency versions live in `cmake/deps/versions.cmake`.
 
-Provision the real production dependencies before configuring the plugin:
+## Build And Deploy To athena-app-godot
+
+Use this sequence when the goal is to build the x86_64 Athena Godot plugin and
+deploy it into the app checkout.
+
+1. From this repo:
 
 ```sh
-./scripts/provision-deps.sh linux-x86_64
-./scripts/provision-deps.sh debian12-aarch64
+cd /home/xavi/projects/inmersia/godot/athena-plugin-godot
 ```
 
-The script installs only under:
-
-- `build/deps/linux-x86_64/`
-- `build/deps/debian12-aarch64/`
-
-Normal plugin CMake configure never downloads or builds dependencies. It only
-consumes the explicit prefixes created by provisioning. `linux-x86_64`
-provisioning must run inside a Debian 12-compatible environment; on a host with
-glibc newer than `2.36`, the script refuses to build release dependencies.
-
-## Development Workflow
-
-Host development builds still use the same explicit provisioned prefixes. On a
-Debian 12-compatible host:
-
-```sh
-./scripts/provision-deps.sh linux-x86_64
-./scripts/build-plugin.sh linux-x86_64-dev
-```
-
-On an Arch or other newer-glibc host, dependency provisioning for release
-profiles refuses to run directly. Use the Debian 12 container workflow below.
-
-## Release Workflow
-
-Build release artifacts inside the Debian 12 container:
+2. Build the Debian 12-compatible x86_64 release package:
 
 ```sh
 ./scripts/build-in-debian12.sh linux-x86_64-release
 ```
 
-The script auto-detects Podman or Docker, builds
-`ci/debian12/Dockerfile`, mounts the workspace at the same absolute path, then
-runs:
+This command builds the Debian 12 container image, provisions pinned
+dependencies under `build/deps/linux-x86_64/`, configures the
+`linux-x86_64-release` preset, checks the Debian 12 ABI ceiling, and creates the
+self-contained addon package at:
 
-```sh
-./scripts/provision-deps.sh linux-x86_64
-cmake --fresh --preset linux-x86_64-release
-cmake --build --preset linux-x86_64-release --parallel <jobs>
-cmake --build --preset check-abi-linux-x86_64-release --parallel <jobs>
-cmake --build --preset package-runtime --parallel <jobs>
+```text
+dist/x86_64/athena-runtime/addons/athena/
 ```
 
-To build and deploy the packaged addon into an existing Godot project in one
-step:
+3. Deploy the packaged Athena addon into `athena-app-godot`:
 
 ```sh
-./scripts/build-in-debian12.sh linux-x86_64-release --deploy /path/to/godot-project
+./scripts/deploy.sh /home/xavi/projects/inmersia/godot/athena-app-godot
 ```
 
-ARM64 release builds use the same wrapper after the Debian 12 ARM64 sysroot is
-available:
+This replaces only:
+
+```text
+/home/xavi/projects/inmersia/godot/athena-app-godot/addons/athena/
+```
+
+It does not install or rebuild MBTiles. The app's `addons/mbtiles/` package is
+owned by `athena-app-godot`.
+
+4. Validate the app runtime from the app repo:
 
 ```sh
-./tools/bootstrap-debian12-sysroot.sh
-./scripts/build-in-debian12.sh debian12-aarch64-release
+cd /home/xavi/projects/inmersia/godot/athena-app-godot
+./scripts/validate-runtime.sh linux-x86_64
 ```
 
-Expected plugin artifacts:
+`validate-runtime.sh` checks both `addons/athena` and `addons/mbtiles`. If it
+fails because MBTiles is missing, fix the MBTiles package in the app repo; do
+not add MBTiles binaries to this wrapper repo.
 
-- `project/bin/libathena_godot.so`
-- `project/bin/libathena_plugin.so`
-- `dist/x86_64/athena-runtime/addons/athena/athena.gdextension`
-- `dist/x86_64/athena-runtime/addons/athena/bin/linux.x86_64/libathena_godot.so`
-- `dist/x86_64/athena-runtime/addons/athena/bin/linux.x86_64/libathena_plugin.so`
-- `project/bin/linux-arm64/libathena_godot.so`
-- `project/bin/linux-arm64/libathena_plugin.so`
+5. Run the app/editor from the app repo:
 
-The `dist/x86_64/athena-runtime/` directory is the self-contained Linux x86_64
-Godot runtime package. It uses the expected addon layout:
+```sh
+./scripts/run-editor.sh
+```
+
+or:
+
+```sh
+./scripts/run-app.sh
+```
+
+## One-Step Build And Deploy
+
+For the same x86_64 release flow, this wrapper can deploy after the container
+build finishes:
+
+```sh
+cd /home/xavi/projects/inmersia/godot/athena-plugin-godot
+./scripts/build-in-debian12.sh linux-x86_64-release --deploy /home/xavi/projects/inmersia/godot/athena-app-godot
+```
+
+The container creates the package. Deployment then runs on the host, because
+the app checkout is a host path.
+
+## Package Layout
+
+The Linux x86_64 runtime package is:
 
 ```text
 dist/x86_64/athena-runtime/
@@ -111,62 +122,79 @@ dist/x86_64/athena-runtime/
             └── linux.x86_64/
                 ├── libathena_godot.so
                 ├── libathena_plugin.so
-                └── <bundled runtime .so files>
+                ├── libopencv_*.so*
+                └── libusb-1.0.so
 ```
 
 Runtime dependency bundling is explicit. The `package-runtime` target copies
-the wrapper and native Athena plugin into
-`dist/x86_64/athena-runtime/addons/athena/bin/linux.x86_64/`, installs a
-rewritten `athena.gdextension` manifest, copies OpenCV runtime libraries from
-`build/deps/linux-x86_64/opencv/lib/`, copies the provisioned DepthAI/XLink
-`libusb-1.0.so` from `build/deps/linux-x86_64/depthai/`, rewrites the packaged
-ELF runpaths to `$ORIGIN`, and verifies the packaged `libathena_plugin.so`
-with `ldd`. The package check fails if OpenCV, libusb, or DepthAI runtime
-dependencies are unresolved or still resolve from `build/deps/`. Bundled
-libraries are resolved from the same `bin/linux.x86_64/` directory instead of
-from host `/usr`.
+the wrapper and native Athena plugin, copies OpenCV runtime libraries from
+`build/deps/linux_x86_64/opencv/lib/`, copies the provisioned DepthAI/XLink
+`libusb-1.0.so`, rewrites packaged ELF runpaths to `$ORIGIN`, and verifies the
+packaged `libathena_plugin.so` with `ldd`.
 
-## Deployment
+The package check fails if OpenCV, libusb, or DepthAI runtime dependencies are
+unresolved or still resolve from `build/deps/`.
 
-Deploy an already packaged addon into a Godot project with:
+## Development Build
+
+For local development on a Debian 12-compatible host:
 
 ```sh
-scripts/deploy.sh /path/to/godot-project
-```
-
-The deploy script validates that the destination contains `project.godot`, then
-uses `rsync --delete` to replace only `addons/athena/`. Re-running the command
-updates changed files and removes stale files from previous deployments.
-
-## Presets
-
-`linux-x86_64-dev` builds a Debug x86_64 GDExtension for local development:
-
-```sh
+cd /home/xavi/projects/inmersia/godot/athena-plugin-godot
 ./scripts/provision-deps.sh linux-x86_64
 ./scripts/build-plugin.sh linux-x86_64-dev
 ```
 
-`linux-x86_64-release` builds a Release x86_64 GDExtension:
+The development build writes directly to:
+
+```text
+project/bin/
+```
+
+The build stages the runtime libraries needed by the local test project next to
+`project/bin/libathena_godot.so`.
+
+On Arch or another newer-glibc host, do not use a host release build as the app
+runtime. It can load locally but will fail the Debian 12 `GLIBC_2.36` ABI gate.
+Use `./scripts/build-in-debian12.sh linux-x86_64-release` for deployable app
+artifacts.
+
+## ARM64 Release
+
+ARM64 release builds target Debian 12 aarch64. Create the base sysroot first:
+
+```sh
+cd /home/xavi/projects/inmersia/godot/athena-plugin-godot
+./tools/bootstrap-debian12-sysroot.sh
+./scripts/build-in-debian12.sh debian12-aarch64-release
+```
+
+Expected ARM64 wrapper artifacts:
+
+```text
+project/bin/linux-arm64/libathena_godot.so
+project/bin/linux-arm64/libathena_plugin.so
+```
+
+The x86_64 `--deploy` flow is the supported app deploy path here. ARM64 app or
+Rock Pi deployment should be handled by the app repo's target-specific
+packaging/deploy scripts.
+
+## Manual Preset Commands
+
+The container workflow runs the following x86_64 release steps for you:
 
 ```sh
 ./scripts/provision-deps.sh linux-x86_64
-./scripts/build-plugin.sh linux-x86_64-release
-cmake --build --preset package-runtime
+cmake --fresh --preset linux-x86_64-release
+cmake --build --preset linux-x86_64-release --parallel <jobs>
+cmake --build --preset check-abi-linux-x86_64-release --parallel <jobs>
+cmake --build --preset package-runtime --parallel <jobs>
 ```
 
-`debian12-aarch64-release` builds a Release ARM64 GDExtension with the Debian
-12 ARM64 toolchain file. Create the base sysroot first:
-
-```sh
-./tools/bootstrap-debian12-sysroot.sh
-./scripts/provision-deps.sh debian12-aarch64
-./scripts/build-plugin.sh debian12-aarch64-release
-```
-
-Debian 12 is the maximum runtime ABI target. Release artifacts should be built
-inside a Debian 12 container/sysroot or with a Debian 12-compatible toolchain
-and dependency set.
+Use the manual commands only when you intentionally control the build
+environment. On a newer-glibc host, the ABI check is expected to fail for
+release artifacts.
 
 ## ABI Validation
 
